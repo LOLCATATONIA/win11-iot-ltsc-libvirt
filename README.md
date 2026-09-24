@@ -67,6 +67,17 @@ in the answer file.
 placeholder password** (`CHANGE-ME-Str0ng-Pa55w0rd!`) with your own. Never
 commit a real password back into this file.
 
+The XML ships with neutral defaults you'll likely want to change too — both
+are called out with a comment at the relevant line:
+
+- **Keyboard layout** (`InputLocale`, two places): `en-US` by default. Set to
+  e.g. `da-DK` for Danish, `de-DE` for German, matching your physical
+  keyboard.
+- **Timezone** (`TimeZone`): `UTC` by default, which always works. Set to a
+  real Windows timezone ID (e.g. `Romance Standard Time` for
+  Copenhagen/Paris/Brussels, `Pacific Standard Time` for US West Coast) if
+  you want the guest clock to show local time.
+
 ```sh
 xorriso -as mkisofs -o autounattend.iso -V AUTOUNATTEND -J -R autounattend.xml
 ```
@@ -161,29 +172,37 @@ independent reasons:
 The most reliable fix is entirely offline (VM powered off), using
 `guestfish`+`hivexregedit` against the qcow2 disk directly — no need to
 type a password through `virsh send-key` (fragile with non-US keyboard
-layouts, and impossible to verify since the field is masked):
+layouts, and impossible to verify since the field is masked). The
+[`scripts/`](scripts/) folder has the exact files this needs — each one has
+usage notes in its header comment:
 
 1. Extract `qemu-ga.exe` and its DLLs from `virtio-win.iso:\guest-agent\qemu-ga-x86_64.msi`
-   with `msiextract`, and register it as a Windows service
-   (`SYSTEM\ControlSet001\Services\QEMU-GA`, `Start=2` AUTO_START,
-   `LocalSystem`) via `hivexregedit --merge`.
-2. Copy `vioserial\w11\amd64\vioser.{inf,sys,cat}` from `virtio-win.iso`
-   into a plain folder inside the guest filesystem (e.g. `C:\drivers\vioserial\`
-   — **not** directly into `C:\Windows\INF\`, which `pnputil /add-driver`
+   with `msiextract`, copy them into the guest filesystem at
+   `C:\Program Files\Qemu-ga\`, then register the service with
+   [`scripts/qga-service.reg`](scripts/qga-service.reg) (`hivexregedit --merge`
+   against the guest's `SYSTEM` hive).
+2. Copy `vioserial\w11\amd64\vioser.{inf,sys,cat}` from `virtio-win.iso` into
+   `C:\Windows\INF\` inside the guest filesystem (`fix-vioserial.cmd` below
+   stages them from there into a proper source folder before installing —
+   **not** directly into `C:\Windows\INF\`, which `pnputil /add-driver`
    refuses as a source location).
 3. Delete the stale device enumeration key so Windows treats the
-   virtio-serial controller as new hardware again:
-   `SYSTEM\ControlSet001\Enum\PCI\VEN_1AF4&DEV_1043&SUBSYS_...` (find the
-   exact device ID via `hivexregedit --export ... '\ControlSet001\Enum\PCI'`
-   — `DEV_1043` is virtio-console/serial in the modern virtio 1.0 ID scheme;
-   `1041`=net, `1042`=block, `1045`=balloon).
-4. Set a **temporary** `AutoAdminLogon=1` (+ `DefaultUserName`/`DefaultPassword`,
-   `AutoLogonCount=1`) in the `SOFTWARE` hive, plus a `RunOnce` entry pointing
-   at a small `.cmd` script that runs `pnputil /add-driver ... /install` and
-   `net start QEMU-GA`, then deletes `AutoAdminLogon`/`DefaultPassword` itself
-   as its last step (self-cleanup, no permanent passwordless login left behind).
+   virtio-serial controller as new hardware again, with
+   [`scripts/delete-vioserial-enum.reg`](scripts/delete-vioserial-enum.reg)
+   (confirm the exact device ID for your setup first — see the comment in
+   that file; `1041`=virtio-net, `1042`=virtio-blk, `1043`=virtio-console/serial,
+   `1045`=virtio-balloon).
+4. Place [`scripts/fix-vioserial.cmd`](scripts/fix-vioserial.cmd) at
+   `C:\Windows\Setup\fix-vioserial.cmd` inside the guest filesystem, then set
+   a **temporary** autologon that triggers it once, with
+   [`scripts/autologon-runonce.reg`](scripts/autologon-runonce.reg) (edit the
+   password placeholder in that file to match your real one first — merge
+   against the guest's `SOFTWARE` hive). The script installs the driver,
+   starts the service, and deletes the autologon settings itself as its last
+   step — no permanent passwordless login left behind.
 5. Boot the VM once — it logs in automatically, the script fixes the driver
-   and starts the service, then disables autologon again on its own.
+   and starts the service, then disables autologon again on its own. Verify
+   with `virsh qemu-agent-command <vm> '{"execute":"guest-ping"}'`.
 
 Two more pitfalls you'll hit doing this:
 

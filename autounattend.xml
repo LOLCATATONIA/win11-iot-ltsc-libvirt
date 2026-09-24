@@ -10,7 +10,8 @@
       <SetupUILanguage>
         <UILanguage>en-US</UILanguage>
       </SetupUILanguage>
-      <InputLocale>da-DK</InputLocale>
+      <!-- Keyboard layout. e.g. "da-DK" for Danish, "de-DE" for German, etc. -->
+      <InputLocale>en-US</InputLocale>
       <SystemLocale>en-US</SystemLocale>
       <UILanguage>en-US</UILanguage>
       <UserLocale>en-US</UserLocale>
@@ -108,7 +109,9 @@
         xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <ComputerName>win11-iot-ltsc</ComputerName>
-      <TimeZone>Romance Standard Time</TimeZone>
+      <!-- Windows timezone ID, e.g. "Romance Standard Time" for Copenhagen/Paris,
+           "Pacific Standard Time" for US West Coast. "UTC" always works as a neutral default. -->
+      <TimeZone>UTC</TimeZone>
     </component>
   </settings>
 
@@ -118,7 +121,7 @@
         language="neutral" versionScope="nonSxS"
         xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-      <InputLocale>da-DK</InputLocale>
+      <InputLocale>en-US</InputLocale>
       <SystemLocale>en-US</SystemLocale>
       <UILanguage>en-US</UILanguage>
       <UserLocale>en-US</UserLocale>

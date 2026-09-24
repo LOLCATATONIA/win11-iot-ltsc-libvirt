@@ -1,0 +1,16 @@
+Windows Registry Editor Version 5.00
+
+; Deletes the cached "no driver found" device enumeration entry for the
+; virtio-serial PCI controller, so Windows treats it as newly-discovered
+; hardware and re-runs the driver search on next boot.
+;
+; The exact key name below (VEN_1AF4&DEV_1043&SUBSYS_11001AF4&REV_01) is what
+; this repo's setup produced with QEMU/virtio 1.0 devices. Confirm yours
+; first with (against the guest's SYSTEM hive):
+;   hivexregedit --export SYSTEM.hive '\ControlSet001\Enum\PCI' | grep -i "VEN_1AF4"
+; 1041 = virtio-net, 1042 = virtio-blk, 1043 = virtio-console/serial,
+; 1044 = virtio-rng, 1045 = virtio-balloon.
+;
+; Apply the same way as qga-service.reg (hivexregedit --merge against SYSTEM hive).
+
+[-\ControlSet001\Enum\PCI\VEN_1AF4&DEV_1043&SUBSYS_11001AF4&REV_01]
