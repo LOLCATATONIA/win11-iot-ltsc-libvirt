@@ -145,7 +145,63 @@ lets you proceed, and the VM will then fail to start. Either:
   virsh --connect qemu:///system vol-upload --pool default my.iso /path/to/my.iso
   ```
 
-## 4. Guest agent doesn't come up — why, and the fix
+## 4. Start the VM and connect to it
+
+`virt-install ... --noautoconsole` above only *creates and starts* the VM
+without opening a display — you still need to connect separately to see
+anything. `--graphics spice --video qxl` means any SPICE-capable viewer
+works.
+
+Start (or restart) it:
+
+```sh
+virsh --connect qemu:///system start win11-iot-ltsc
+```
+
+Check its state at any time:
+
+```sh
+virsh --connect qemu:///system list --all
+```
+
+Get a GUI, either way:
+
+- **`virt-manager`** — the VM shows up under the `QEMU/KVM` connection
+  (`qemu:///system`); double-click it to open the display.
+- **`virt-viewer`** from a terminal:
+  ```sh
+  virt-viewer --connect qemu:///system win11-iot-ltsc
+  ```
+
+You'll land on the Windows login screen. Log in with the local administrator
+account you set in `autounattend.xml` before building the ISO (username
+`admin` by default — see the `UserAccounts` section of the XML for the exact
+name, and whatever password you replaced the placeholder with).
+
+**Always shut down with `virsh shutdown`, not `virsh destroy`.** `destroy` is
+a hard power-off and can leave the NTFS filesystem "unclean," which blocks a
+later offline `guestfish` edit (like the guest-agent fix below) until Windows
+has booted once more and shut down cleanly.
+
+```sh
+virsh --connect qemu:///system shutdown win11-iot-ltsc
+```
+
+Once the guest agent (below) is working, a few more things become available
+without needing the GUI at all:
+
+```sh
+# confirm the agent is alive
+virsh --connect qemu:///system qemu-agent-command win11-iot-ltsc '{"execute":"guest-ping"}'
+
+# get the guest's IP reliably (works even without a DHCP lease visible to the host)
+virsh --connect qemu:///system domifaddr win11-iot-ltsc --source agent
+
+# clean guest-initiated shutdown instead of an ACPI request
+virsh --connect qemu:///system shutdown win11-iot-ltsc --mode agent
+```
+
+## 5. Guest agent doesn't come up — why, and the fix
 
 After install, `virsh qemu-agent-command <vm> '{"execute":"guest-ping"}'`
 will keep failing with "QEMU guest agent is not connected", for two
